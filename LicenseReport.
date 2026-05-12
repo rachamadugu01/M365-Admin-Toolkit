@@ -1,0 +1,53 @@
+$Date = Get-Date -Format "yyyyMMdd_HHmmss"
+$Output = ".\reports\MailboxReport_$Date.csv"
+
+Write-Host "Collecting mailbox information..." -ForegroundColor Yellow
+
+Get-EXOMailbox -ResultSize Unlimited |
+Select-Object DisplayName,
+PrimarySmtpAddress,
+RecipientTypeDetails,
+WhenCreated,
+ArchiveStatus |
+Export-Csv $Output -NoTypeInformation
+
+Write-Host "Mailbox report exported to $Output" -ForegroundColor Green
+
+Groups = Get-DistributionGroup
+$Results = @()
+
+foreach ($Group in $Groups) {
+    $Members = Get-DistributionGroupMember -Identity $Group.Identity
+
+    foreach ($Member in $Members) {
+        $Results += [PSCustomObject]@{
+            GroupName = $Group.DisplayName
+            MemberName = $Member.DisplayName
+            Email = $Member.PrimarySmtpAddress
+        }
+    }
+}
+
+$Results | Export-Csv ".\reports\DistributionGroupMembers.csv" -NoTypeInformation
+
+Write-Host "Distribution group export completed." -ForegroundColor Green
+
+
+$Users = Get-MgUser -All
+$Results = @()
+
+foreach ($User in $Users) {
+    $Licenses = Get-MgUserLicenseDetail -UserId $User.Id
+
+    foreach ($License in $Licenses) {
+        $Results += [PSCustomObject]@{
+            UserPrincipalName = $User.UserPrincipalName
+            DisplayName = $User.DisplayName
+            License = $License.SkuPartNumber
+        }
+    }
+}
+
+$Results | Export-Csv ".\reports\LicenseReport.csv" -NoTypeInformation
+
+Write-Host "License report generated." -ForegroundColor Green
